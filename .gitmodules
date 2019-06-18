@@ -1,3 +1,6 @@
 [submodule "poa-bridge-contracts"]
-	path = poa-bridge-contracts
+	path = contracts/poa-bridge
 	url = https://github.com/poanetwork/poa-bridge-contracts.git
+[submodule "contracts/poa-consensus"]
+	path = contracts/poa-consensus
+	url = https://github.com/poanetwork/poa-network-consensus-contracts.git

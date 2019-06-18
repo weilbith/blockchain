@@ -5,7 +5,7 @@ pragma solidity ^0.5.8;
 */
 
 
-import "./ValidatorSet.sol";
+import "../ValidatorSet.sol";
 
 
 contract TestValidatorSet is ValidatorSet {

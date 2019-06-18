@@ -1,6 +1,6 @@
 pragma solidity ^0.5.8;
 
-import "./ValidatorProxy.sol";
+import "../ValidatorProxy.sol";
 
 
 contract TestValidatorProxy is ValidatorProxy {

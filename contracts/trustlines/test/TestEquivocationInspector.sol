@@ -5,7 +5,7 @@ pragma solidity ^0.5.8;
 */
 
 
-import "./EquivocationInspector.sol";
+import "../EquivocationInspector.sol";
 
 
 contract TestEquivocationInspector {

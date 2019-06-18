@@ -1,8 +1,8 @@
 pragma solidity ^0.5.8;
 
-import "./interfaces/IRewardByBlock.sol";
-import "./eternal-storage/EternalStorage.sol";
-import "./libs/SafeMath.sol";
+import "../poa-bridge/contracts/interfaces/IRewardByBlock.sol";
+import "../poa-bridge/contracts/eternal-storage/EternalStorage.sol";
+import "../poa-bridge/contracts/libs/SafeMath.sol";
 
 
 contract RewardByBlock is EternalStorage, IRewardByBlock {

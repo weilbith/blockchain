@@ -5,7 +5,7 @@ pragma solidity ^0.5.8;
 */
 
 
-import "./ValidatorAuction.sol";
+import "../ValidatorAuction.sol";
 
 
 contract TestValidatorAuctionFixedPrice is ValidatorAuction {
