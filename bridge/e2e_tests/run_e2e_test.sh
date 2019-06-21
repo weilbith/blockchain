@@ -11,8 +11,9 @@ VALIDATOR_SET_CSV_FILE=$(realpath "$E2E_DIRECTORY/validator-list")
 ENVIRONMENT_VARIABLES_FILE="$E2E_DIRECTORY/env_override"
 VIRTUAL_ENV="$E2E_DIRECTORY/venv"
 DOCKER_COMPOSE_COMMAND="docker-compose -f ../docker-compose.yml -f docker-compose-override.yml"
-VALIDATOR_ADDRESS=0x7e5f4552091a69125d5dfcb7b8c2659029395bdf
+VALIDATOR_ADDRESS=0x46ae357bA2f459Cb04697837397eC90b47e48727 # Must be a checksum address
 VALIDATOR_ADDRESS_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
+PREMINTED_COINS_AMOUNT=1
 
 OPTIND=1
 ARGUMENT_DOCKER_BUILD=0
@@ -77,8 +78,8 @@ echo "===> Start main and side chain node services"
 $DOCKER_COMPOSE_COMMAND up --no-start
 $DOCKER_COMPOSE_COMMAND up -d node_side node_main
 
-side_node_ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' node_side)
-main_node_ip_address=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' node_main)
+node_side_rpc_address="http://$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' node_side):8545"
+node_main_rpc_address="http://$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' node_main):8544"
 
 echo "===> Prepare deploy tools"
 [[ ! -d "$VIRTUAL_ENV" ]] && python3 -m venv "$VIRTUAL_ENV"
@@ -91,29 +92,29 @@ echo "===> Prepare deployment tools"
 (cd "$BRIDGE_DEPLOY_DIRECTORY" && make install)
 
 echo "===> Deploy validator set contracts"
-validator-set-deploy deploy --jsonrpc "http://$side_node_ip_address:8545" --validators "$VALIDATOR_SET_CSV_FILE"
+validator-set-deploy deploy --jsonrpc "$node_side_rpc_address" --validators "$VALIDATOR_SET_CSV_FILE"
 validator_set_proxy_contract_address=$(executeAndParseHexAddress "validator-set-deploy deploy-proxy \
-  --jsonrpc http://$side_node_ip_address:8545")
+  --jsonrpc $node_side_rpc_address")
 # validator_set_proxy_contract_address=0x111
 
 echo "===> Deploy bridge contracts"
 foreign_bridge_contract_address=$(executeAndParseHexAddress "bridge-deploy deploy-foreign \
-  --jsonrpc http://$main_node_ip_address:8544")
-# foreign_bridge_contract_address=0x222222
-# home_bridge_contract_address=$(executeAndParseHexAddress \
-#   "bridge-deploy deploy-home --jsonrpc http://$side_node_ip_address:8545 \
-#   --validator-set-address $validator_set_proxy_contract_address"
-#   --block-reward-address $block_reward_contract_address
-#   --required-block-confirmations 1
-#   --owner-address $VALIDATOR_ADDRESS")
-home_bridge_contract_address=0x33333
+  --jsonrpc $node_main_rpc_address")
+
+block_reward_contract_address=$(executeAndParseHexAddress \
+  "bridge-deploy deploy-reward --jsonrpc $node_side_rpc_address")
+
+home_bridge_contract_address=$(executeAndParseHexAddress \
+  "bridge-deploy deploy-home --jsonrpc $node_side_rpc_address \
+  --validator-set-address $validator_set_proxy_contract_address
+  --block-reward-address $block_reward_contract_address
+  --required-block-confirmations 1
+  --owner-address $VALIDATOR_ADDRESS")
 
 echo "===> Deploy token contracts"
 token_contract_address=$(executeAndParseHexAddress "deploy-tools deploy \
-  --jsonrpc http://$main_node_ip_address:8544 \
-  --contracts-dir $CONTRACT_DIRECTORY \
-  TruslinesNetworkToken")
-# token_contract_address=0x44444
+  --jsonrpc $node_main_rpc_address --contracts-dir $CONTRACT_DIRECTORY \
+  TrustlinesNetworkToken TrustlinesNetworkToken TNC 18 $VALIDATOR_ADDRESS $PREMINTED_COINS_AMOUNT")
 
 echo "===> Set bridge environment variables"
 sed -i "s/\(FOREIGN_BRIDGE_ADDRESS=\).*/\1$foreign_bridge_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
@@ -146,7 +147,12 @@ fi
 
 echo "===> Test a bridge transfer from foreign to home chain"
 
-# TODO
+# TODO: generate transaction for token transfer call
+curl --data "{\"method\": \"eth_sendTransaction\", \"params\":[{ \
+  \"from\": \"$VALIDATOR_ADDRESS\", \"to\": \"$token_contract_address\", \"gas\": \"0x76c0\", \
+  \"gasPrice\":\"0x9184e72a000\", \"value\": \"$PREMINTED_COINS_AMOUNT\", \"data\": \"TODO\" \
+  }], \"id\":1, \"jsonrpc\": \"2.0\"}" \
+  -H "Content-Type: application/json" -X POST "$node_main_rpc_address"
 
 echo "===> Shutting down"
 $DOCKER_COMPOSE_COMMAND down
