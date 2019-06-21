@@ -12,14 +12,16 @@
                             ]
                         }
                     }
-                }
+                },
+                "blockRewardContractAddress": "0x4eE4611378b6951f0133Ed655483d0a24C9B4700",
+                "blockRewardContractTransition": "100"
             }
         }
     },
     "params": {
         "gasLimitBoundDivisor": "0x400",
         "maximumExtraDataSize": "0x20",
-        "minGasLimit": "0xF4240",
+        "minGasLimit": "00x7a120",
         "networkID": "0x130A",
         "chainID": "0x4874",
         "eip155Transition": 0,
