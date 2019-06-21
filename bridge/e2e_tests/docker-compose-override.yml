@@ -24,8 +24,10 @@ services:
       - 8545:8545
     networks:
       - net_node_side
+    # command: >
+    #   --logging account_bloom,basicauthority,chain,client,dapps,discovery,diskmap,enact,engine,estimate_gas,ethash,executive,ext,external_tx,externalities,fatdb,fetch,hypervisor,ipc,jdb,journaldb,les,les_provider,local_store,migration,miner,mode,on_demand,own_tx,poa,rcdb,shutdown,signer,snapshot,snapshot_io,snapshot_watcher,spec,state,stats,stratum,sync,txqueue,rpc=trace
     command: >
-      --logging account_bloom,basicauthority,chain,client,dapps,discovery,diskmap,enact,engine,estimate_gas,ethash,executive,ext,external_tx,externalities,fatdb,fetch,hypervisor,ipc,jdb,journaldb,les,les_provider,local_store,migration,miner,mode,on_demand,own_tx,poa,rcdb,shutdown,signer,snapshot,snapshot_io,snapshot_watcher,spec,state,stats,stratum,sync,txqueue,rpc=trace
+      --logging txqueue,rpc=trace
 
   bridge_request:
     env_file: ./e2e_tests/env_override
