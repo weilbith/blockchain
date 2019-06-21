@@ -1,5 +1,5 @@
 {
-    "name": "e2e_test_chain",
+    "name": "e2e_test_chain_side",
     "engine": {
         "authorityRound": {
             "params": {
