@@ -6,9 +6,11 @@ set -a
 E2E_DIRECTORY=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
 VALIDATOR_SET_DEPLOY_DIRECTORY=$(realpath "$E2E_DIRECTORY/../../validator-set-deploy")
 BRIDGE_DEPLOY_DIRECTORY=$(realpath "$E2E_DIRECTORY/../../bridge-deploy")
+CONTRACT_DIRECTORY=$(realpath "$E2E_DIRECTORY/../../contracts/contracts")
 VALIDATOR_SET_CSV_FILE=$(realpath "$E2E_DIRECTORY/validator-list")
-DOCKER_COMPOSE_COMMAND="docker-compose -f ../docker-compose.yml -f docker-compose-override.yml"
+ENVIRONMENT_VARIABLES_FILE="$E2E_DIRECTORY/env_override"
 VIRTUAL_ENV="$E2E_DIRECTORY/venv"
+DOCKER_COMPOSE_COMMAND="docker-compose -f ../docker-compose.yml -f docker-compose-override.yml"
 VALIDATOR_ADDRESS=0x7e5f4552091a69125d5dfcb7b8c2659029395bdf
 VALIDATOR_ADDRESS_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
 
@@ -39,27 +41,39 @@ trap preexec DEBUG
 
 function cleanup() {
   cd "$E2E_DIRECTORY"
-  $DOCKER_COMPOSE_COMMAND logs node_side >node_side.log
   $DOCKER_COMPOSE_COMMAND down -v
 }
 
 trap "cleanup" EXIT
 trap "exit 1" SIGINT SIGTERM
 
-echo "====> Shutdown possible old services"
+# Execute a command and parse a possible hex address from the output.
+# The address is expected to start with 0x.
+# Only the first address will be returned.
+#
+# Arguments:
+#   $1 - command to execute
+#
+function executeAndParseHexAddress() {
+  output=$($1)
+  hexAddressWithPostfix=${output##*0x}
+  echo "0x${hexAddressWithPostfix%% *}"
+}
+
+echo "===> Shutdown possible old services"
 $DOCKER_COMPOSE_COMMAND down -v
 
 if [[ $ARGUMENT_DOCKER_BUILD == 1 ]]; then
-  echo "====> Build images for services"
+  echo "===> Build images for services"
   $DOCKER_COMPOSE_COMMAND build
 fi
 
 if [[ $ARGUMENT_DOCKER_PULL == 1 ]]; then
-  echo "====> Pull images for services"
+  echo "===> Pull images for services"
   $DOCKER_COMPOSE_COMMAND pull
 fi
 
-echo "====> Start main and side chain node services"
+echo "===> Start main and side chain node services"
 $DOCKER_COMPOSE_COMMAND up --no-start
 $DOCKER_COMPOSE_COMMAND up -d node_side node_main
 
@@ -77,25 +91,41 @@ echo "===> Prepare deployment tools"
 (cd "$BRIDGE_DEPLOY_DIRECTORY" && make install)
 
 echo "===> Deploy validator set contracts"
-# TODO: parse validator set contract address
 validator-set-deploy deploy --jsonrpc "http://$side_node_ip_address:8545" --validators "$VALIDATOR_SET_CSV_FILE"
-echo "done"
-validator-set-deploy deploy-proxy --jsonrpc "http://$side_node_ip_address:8545"
+validator_set_proxy_contract_address=$(executeAndParseHexAddress "validator-set-deploy deploy-proxy \
+  --jsonrpc http://$side_node_ip_address:8545")
+# validator_set_proxy_contract_address=0x111
 
 echo "===> Deploy bridge contracts"
-bridge-deploy deploy-foreign --jsonrpc "http://$main_node_ip_address:8544"
-bridge-deploy deploy-home --jsonrpc "http://$side_node_ip_address:8545" # TODO: pass validator set contract
+foreign_bridge_contract_address=$(executeAndParseHexAddress "bridge-deploy deploy-foreign \
+  --jsonrpc http://$main_node_ip_address:8544")
+# foreign_bridge_contract_address=0x222222
+# home_bridge_contract_address=$(executeAndParseHexAddress \
+#   "bridge-deploy deploy-home --jsonrpc http://$side_node_ip_address:8545 \
+#   --validator-set-address $validator_set_proxy_contract_address"
+#   --block-reward-address $block_reward_contract_address
+#   --required-block-confirmations 1
+#   --owner-address $VALIDATOR_ADDRESS")
+home_bridge_contract_address=0x33333
+
+echo "===> Deploy token contracts"
+token_contract_address=$(executeAndParseHexAddress "deploy-tools deploy \
+  --jsonrpc http://$main_node_ip_address:8544 \
+  --contracts-dir $CONTRACT_DIRECTORY \
+  TruslinesNetworkToken")
+# token_contract_address=0x44444
 
 echo "===> Set bridge environment variables"
-
-# TODO: overwrite parts of .env_overwrite
+sed -i "s/\(FOREIGN_BRIDGE_ADDRESS=\).*/\1$foreign_bridge_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
+sed -i "s/\(HOME_BRIDGE_ADDRESS=\).*/\1$home_bridge_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
+sed -i "s/\(ERC20_TOKEN_ADDRESS=\).*/\1$token_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
 
 echo "===> Start bridge services"
 
 $DOCKER_COMPOSE_COMMAND up -d \
   bridge_request bridge_collected bridge_affirmation bridge_senderhome bridge_senderforeign
 
-echo "====> Test if all service have started and are running"
+echo "===> Test if all service have started and are running"
 RABBIT_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_rabbit_1)
 REDIS_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_redis_1)
 REQUEST_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_request_1)
@@ -118,5 +148,5 @@ echo "===> Test a bridge transfer from foreign to home chain"
 
 # TODO
 
-echo "====> Shutting down"
+echo "===> Shutting down"
 $DOCKER_COMPOSE_COMMAND down
