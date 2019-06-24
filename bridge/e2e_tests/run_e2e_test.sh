@@ -120,7 +120,9 @@ home_bridge_contract_address=$(executeAndParseHexAddress \
   --validator-set-address $validator_set_proxy_contract_address
   --block-reward-address $block_reward_contract_address
   --required-block-confirmations 1
-  --owner-address $VALIDATOR_ADDRESS")
+  --owner-address $VALIDATOR_ADDRESS
+  --gas 7000000
+  --gas-price 10")
 
 echo "HomeBridge contract address: $home_bridge_contract_address"
 
