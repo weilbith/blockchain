@@ -1,4 +1,4 @@
-FROM parity/parity:v2.5.1
+FROM parity/parity:v2.5.2-beta
 
 ARG chain_spec_path
 
