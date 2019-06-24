@@ -89,7 +89,10 @@ echo "===> Prepare deployment tools"
 
 echo "===> Start main and side chain node services"
 $DOCKER_COMPOSE_COMMAND up --no-start
-# $DOCKER_COMPOSE_COMMAND up -d node_side node_main
+$DOCKER_COMPOSE_COMMAND up -d node_side node_main
+
+echo "===> Wait 10 seconds to let the chains start up"
+sleep 10
 
 echo "===> Deploy validator set contracts"
 validator-set-deploy deploy --jsonrpc "$NODE_SIDE_RPC_ADDRESS" --validators "$VALIDATOR_SET_CSV_FILE"
