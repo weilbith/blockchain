@@ -21,14 +21,18 @@ NODE_MAIN_RPC_ADDRESS="http://127.0.0.1:8544"
 OPTIND=1
 ARGUMENT_DOCKER_BUILD=0
 ARGUMENT_DOCKER_PULL=0
+ARGUMENT_SILENT=0
 
-while getopts "pb" opt; do
+while getopts "pbs" opt; do
   case "$opt" in
   b)
     ARGUMENT_DOCKER_BUILD=1
     ;;
   p)
     ARGUMENT_DOCKER_PULL=1
+    ;;
+  s)
+    ARGUMENT_SILENT=1
     ;;
   *) ;;
 
@@ -37,7 +41,7 @@ done
 
 # Optimized version of 'set -x'
 function preexec() {
-  if [[ $BASH_COMMAND != echo* ]]; then echo >&2 "+ $BASH_COMMAND"; fi
+  if [[ $BASH_COMMAND != echo* ]] && [[ $ARGUMENT_SILENT -eq 0 ]]; then echo >&2 "+ $BASH_COMMAND"; fi
 }
 
 set -o functrace # run DEBUG trap in subshells
