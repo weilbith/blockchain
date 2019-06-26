@@ -14,7 +14,7 @@ DOCKER_COMPOSE_COMMAND="docker-compose -f ../docker-compose.yml -f docker-compos
 VALIDATOR_ADDRESS=0x46ae357bA2f459Cb04697837397eC90b47e48727 # Must be a checksum address
 VALIDATOR_ADDRESS_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
 PREMINTED_COINS_AMOUNT=1
-BLOCK_REWARD_CONTRACT_TRANSITION_BLOCK=5600
+BLOCK_REWARD_CONTRACT_TRANSITION_BLOCK=70
 NODE_SIDE_RPC_ADDRESS="http://127.0.0.1:8545"
 NODE_MAIN_RPC_ADDRESS="http://127.0.0.1:8544"
 
@@ -153,6 +153,7 @@ while [[ $blockNumber -lt $BLOCK_REWARD_CONTRACT_TRANSITION_BLOCK ]]; do
     -H "Content-Type: application/json" -X POST $NODE_SIDE_RPC_ADDRESS)
   blockNumberHex=$(echo "$response" | awk -F '0x' '{print $2}' | awk -F '"' '{print $1}')
   blockNumber=$((16#$blockNumberHex))
+  sleep 1
 done
 
 printf '\n'
@@ -160,35 +161,52 @@ printf '\n'
 echo "===> Start bridge services"
 
 $DOCKER_COMPOSE_COMMAND up -d \
-  bridge_request bridge_collected bridge_affirmation bridge_senderhome bridge_senderforeign
+  rabbit redis bridge_request bridge_collected bridge_affirmation bridge_senderhome bridge_senderforeign
 
-echo "===> Test if all service have started and are running"
-RABBIT_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_rabbit_1)
-REDIS_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_redis_1)
-REQUEST_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_request_1)
-AFFIRMATION_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_affirmation_1)
-SENDER_FOREIGN_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_senderforeign)
-SENDER_HOME_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_senderhome_1)
-COLLECTED_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_collected_1)
+printf "===> Wait until message broker is up"
 
-if [ "${RABBIT_RUNNING}" != "true" ] ||
-  [ "${REDIS_RUNNING}" != "true" ] ||
-  [ "${REQUEST_RUNNING}" != "true" ] ||
-  [ "${AFFIRMATION_RUNNING}" != "true" ] ||
-  [ "${SENDER_FOREIGN_RUNNING}" != "true" ] ||
-  [ "${SENDER_HOME_RUNNING}" != "true" ] ||
-  [ "${COLLECTED_RUNNING}" != "true" ]; then
-  exit 1
-fi
+rabbit_log_length=0
+
+# Mind the "Attaching to..." line at the beginning.
+while [[ $rabbit_log_length -lt 2 ]]; do
+  printf .
+  rabbit_log=$($DOCKER_COMPOSE_COMMAND logs rabbit)
+  rabbit_log_length=$(wc -l <<< "$rabbit_log")
+  sleep 5
+done
+
+printf '\n'
+
+# echo "===> Test if all service have started and are running"
+# RABBIT_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_rabbit_1)
+# REDIS_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_redis_1)
+# REQUEST_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_request_1)
+# AFFIRMATION_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_affirmation_1)
+# SENDER_FOREIGN_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_senderforeign)
+# SENDER_HOME_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_senderhome_1)
+# COLLECTED_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_collected_1)
+# 
+# if [ "${RABBIT_RUNNING}" != "true" ] ||
+  # [ "${REDIS_RUNNING}" != "true" ] ||
+  # [ "${REQUEST_RUNNING}" != "true" ] ||
+  # [ "${AFFIRMATION_RUNNING}" != "true" ] ||
+  # [ "${SENDER_FOREIGN_RUNNING}" != "true" ] ||
+  # [ "${SENDER_HOME_RUNNING}" != "true" ] ||
+  # [ "${COLLECTED_RUNNING}" != "true" ]; then
+  # exit 1
+# fi
 
 echo "===> Test a bridge transfer from foreign to home chain"
 
-# TODO: generate transaction for token transfer call
-curl --data "{\"method\": \"eth_sendTransaction\", \"params\":[{ \
-  \"from\": \"$VALIDATOR_ADDRESS\", \"to\": \"$token_contract_address\", \"gas\": \"0x76c0\", \
-  \"gasPrice\":\"0x9184e72a000\", \"value\": \"$PREMINTED_COINS_AMOUNT\", \"data\": \"TODO\" \
-  }], \"id\":1, \"jsonrpc\": \"2.0\"}" \
-  -H "Content-Type: application/json" -X POST "$NODE_MAIN_RPC_ADDRESS"
+read
+sleep 100
+$DOCKER_COMPOSE_COMMAND logs rabbit > rabbit.log
+$DOCKER_COMPOSE_COMMAND logs redis > redis.log
+$DOCKER_COMPOSE_COMMAND logs bridge_collected > bridge_collected.log
+$DOCKER_COMPOSE_COMMAND logs bridge_affirmation > bridge_affirmation.log
+$DOCKER_COMPOSE_COMMAND logs bridge_senderhome > bridge_senderhome.log
+$DOCKER_COMPOSE_COMMAND logs bridge_senderforeign > bridge_senderforeign.log
+# TODO: wait contract-deploy-tools
 
 echo "===> Shutting down"
 $DOCKER_COMPOSE_COMMAND down
