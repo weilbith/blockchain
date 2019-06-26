@@ -138,9 +138,11 @@ token_contract_address=$(executeAndParseHexAddress "deploy-tools deploy \
 echo "Token contract address: $token_contract_address"
 
 echo "===> Set bridge environment variables"
-sed -i "s/\(FOREIGN_BRIDGE_ADDRESS=\).*/\1$foreign_bridge_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
-sed -i "s/\(HOME_BRIDGE_ADDRESS=\).*/\1$home_bridge_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
-sed -i "s/\(ERC20_TOKEN_ADDRESS=\).*/\1$token_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
+echo $foreign_bridge_contract_address
+echo $ENVIRONMENT_VARIABLES_FILE
+sed -i '' "s/\(FOREIGN_BRIDGE_ADDRESS=\).*/\1$foreign_bridge_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
+sed -i '' "s/\(HOME_BRIDGE_ADDRESS=\).*/\1$home_bridge_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
+sed -i '' "s/\(ERC20_TOKEN_ADDRESS=\).*/\1$token_contract_address/" "$ENVIRONMENT_VARIABLES_FILE"
 
 printf "===> Wait until block reward contract transition"
 
@@ -185,7 +187,7 @@ printf '\n'
 # SENDER_FOREIGN_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_senderforeign)
 # SENDER_HOME_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_senderhome_1)
 # COLLECTED_RUNNING=$(docker inspect -f '{{.State.Running}}' bridge_bridge_collected_1)
-# 
+#
 # if [ "${RABBIT_RUNNING}" != "true" ] ||
   # [ "${REDIS_RUNNING}" != "true" ] ||
   # [ "${REQUEST_RUNNING}" != "true" ] ||
