@@ -17,6 +17,10 @@ contract ValidatorProxy {
 
     constructor(address[] memory _validators) public {
         validators = _validators;
+
+        for (uint i = 0; i < _validators.length; i++) {
+            isValidator[_validators[i]] = true;
+        }
     }
 
     function updateValidators(address[] memory newValidators) public {
@@ -35,6 +39,10 @@ contract ValidatorProxy {
 
     function numberOfValidators() public returns(uint) {
         return validators.length;
+    }
+
+    function requiredSignatures() public returns(uint) {
+        return 1;
     }
 
     function getValidators() public returns(address[] memory) {

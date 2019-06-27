@@ -237,8 +237,10 @@ $DOCKER_COMPOSE_COMMAND logs bridge_request > bridge_request.log
 $DOCKER_COMPOSE_COMMAND logs bridge_senderhome > bridge_senderhome.log
 $DOCKER_COMPOSE_COMMAND logs bridge_senderforeign > bridge_senderforeign.log
 $DOCKER_COMPOSE_COMMAND logs rabbit > bridge_rabbit.log
+$DOCKER_COMPOSE_COMMAND logs node_side > bridge_side.log
 
 echo "Check the logs now you looser..."
+read
 
 echo "===> Shutting down"
 exit 0
