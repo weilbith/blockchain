@@ -12,8 +12,8 @@ VALIDATOR_SET_CSV_FILE=$(realpath "$E2E_DIRECTORY/validator-list")
 ENVIRONMENT_VARIABLES_FILE="$E2E_DIRECTORY/env_override"
 VIRTUAL_ENV="$E2E_DIRECTORY/venv"
 DOCKER_COMPOSE_COMMAND="docker-compose -f ../docker-compose.yml -f docker-compose-override.yml"
-VALIDATOR_ADDRESS=0x46ae357bA2f459Cb04697837397eC90b47e48727 # Must be a checksum address
-VALIDATOR_ADDRESS_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
+VALIDATOR_ADDRESS=0x46ae357ba2f459cb04697837397ec90b47e48727
+VALIDATOR_ADDRESS_PRIVATE_KEY=a17b8b084a4019298e48c6f8fb84d92e35be9ae22142f0472b8fe43ad6de5d22
 TRANSFER_ACCOUNT_ADDRESS=0x7B9EeF4CC211BFBDB643ABE6D12D01599E516547
 TRANSFER_ACCOUNT_KEYFILE="$E2E_DIRECTORY/transfer-key.json"
 TRANSFER_ACCOUNT_PASSWORD="trustlines"
@@ -114,7 +114,7 @@ sleep 10
 echo "===> Deploy validator set contracts"
 validator-set-deploy deploy --jsonrpc "$NODE_SIDE_RPC_ADDRESS" --validators "$VALIDATOR_SET_CSV_FILE"
 validator_set_proxy_contract_address=$(executeAndParseHexAddress "validator-set-deploy deploy-proxy \
-  --jsonrpc $NODE_SIDE_RPC_ADDRESS")
+  --jsonrpc $NODE_SIDE_RPC_ADDRESS --validators $VALIDATOR_SET_CSV_FILE")
 
 echo "ValidatorSetProxy contract address: $validator_set_proxy_contract_address"
 
@@ -219,7 +219,8 @@ homeNativeBalanceBefore=$(convertHexToDecOfJsonRpcResponse "$response")
 echo "Balance on home chain before: $homeNativeBalanceBefore"
 
 echo "Transfer token to foreign bridge...."
-yes "$TRANSFER_ACCOUNT_PASSWORD" | deploy-tools transact --jsonrpc $NODE_MAIN_RPC_ADDRESS --contracts-dir $CONTRACT_DIRECTORY --keystore $TRANSFER_ACCOUNT_KEYFILE --contract-address $token_contract_address TrustlinesNetworkToken transfer $foreign_bridge_contract_address $PREMINTED_TOKEN_AMOUNT
+# yes "$TRANSFER_ACCOUNT_PASSWORD" | deploy-tools transact --jsonrpc $NODE_MAIN_RPC_ADDRESS --contracts-dir $CONTRACT_DIRECTORY --keystore $TRANSFER_ACCOUNT_KEYFILE --contract-address $token_contract_address TrustlinesNetworkToken transfer $foreign_bridge_contract_address $PREMINTED_TOKEN_AMOUNT
+deploy-tools transact --jsonrpc $NODE_MAIN_RPC_ADDRESS --contracts-dir $CONTRACT_DIRECTORY --keystore $TRANSFER_ACCOUNT_KEYFILE --contract-address $token_contract_address TrustlinesNetworkToken transfer $foreign_bridge_contract_address $PREMINTED_TOKEN_AMOUNT
 
 echo "Wait for required block confirmations and collecting signatures..."
 curl --silent --data '{"method":"eth_getTransactionReceipt","params":["0xf63af4d417d3847cc45acece2b678b9cc74a172e547a102b10eb4175d101d2be"],"id":1,"jsonrpc":"2.0"}' -H "Content-Type: application/json" -X POST $NODE_MAIN_RPC_ADDRESS
@@ -230,8 +231,14 @@ response=$(curl --silent --data "{\"method\":\"eth_getBalance\",\"params\":[\"$T
 homeNativeBalanceAfter=$(convertHexToDecOfJsonRpcResponse "$response")
 echo "Balance on home chain after: $homeNativeBalanceAfter"
 
+$DOCKER_COMPOSE_COMMAND logs bridge_affirmation > bridge_affirmation.log
+$DOCKER_COMPOSE_COMMAND logs bridge_collected > bridge_collected.log
+$DOCKER_COMPOSE_COMMAND logs bridge_request > bridge_request.log
+$DOCKER_COMPOSE_COMMAND logs bridge_senderhome > bridge_senderhome.log
+$DOCKER_COMPOSE_COMMAND logs bridge_senderforeign > bridge_senderforeign.log
+$DOCKER_COMPOSE_COMMAND logs rabbit > bridge_rabbit.log
+
 echo "Check the logs now you looser..."
-read
 
 echo "===> Shutting down"
 exit 0
